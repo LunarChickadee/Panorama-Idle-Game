@@ -801,7 +801,17 @@ name=""
 ___ ENDPROCEDURE clearName/1<B _________________________________________________
 
 ___ PROCEDURE .updateInventory _________________________________________________
-«Inventory»="Loops: "+¶+str(getdictionaryvalue(gameDict,"Loops"))+","+str(getdictionaryvalue(gameDict,"nestedifs"))
+«Inventory»=
+    "Loops: "+¶+str(getdictionaryvalue(gameDict,"Loops"))+","+
+    "If's :"+¶+str(getdictionaryvalue(gameDict,"ifs"))+","+
+    "If/Else's :"+¶+str(getdictionaryvalue(gameDict,"if/else"))+","+
+    "Nested If's :"+¶+str(getdictionaryvalue(gameDict,"nestedifs"))
+    
+    //set this in the future to be a variable that holds just loops, then loops and ifs, then loops ifs and elses, etc, etc. Maybe use the execute like the stopwatch does to feed it specific code?
+
+inventoryArray=«Inventory»
+
+showvariables inventoryArray
 ___ ENDPROCEDURE .updateInventory ______________________________________________
 
 ___ PROCEDURE .activateCell ____________________________________________________
@@ -863,8 +873,8 @@ rtn
 endif
 
 addrecord
-field «Title»
-«Title»=newPlayer
+field «Player»
+«Player»=newPlayer
 Bytes=0
 CurrentSize=1
 LifetimeBytes=0
@@ -884,7 +894,8 @@ ___ ENDPROCEDURE .addPlayer ____________________________________________________
 
 ___ PROCEDURE .Initialize ______________________________________________________
 global currentBytes, gameDict, byteSize,playerName,totalBytes,
-newPlayer,nameChoice,loopCount,autoON,currentIncrement,currentGoal
+newPlayer,nameChoice,loopCount,autoON,currentIncrement,currentGoal,
+inventoryArray
 permanent nameList
 
 openform "Game"
@@ -914,7 +925,7 @@ superchoicedialog nameList, nameChoice, {caption="Choose your player. Or select 
 
 //creates a new player
 if nameChoice="New Player"
-call .addPlayer
+    call .addPlayer
 else
 //sets the game where you left off
 //you'll want a world timer for idling while the file is closed
@@ -922,18 +933,108 @@ find «Player»=nameChoice
 if (not info("found"))
     message "Player"+nameChoice+"not found."
 endif
+endif
+
+//initializes the inventory
+if Inventory=""
+gameDict=""
+initializedictionary gameDict,"Loops","0","ifs","0","if/else","0","nestedifs","0"
+
+showvariables gameDict
+
+InventoryDictionary=gameDict
+
+else
 
 gameDict=InventoryDictionary
 currentBytes=Bytes
 totalBytes=LifetimeBytes
 byteSize=CurrentSize
 
-//this thing's job was to run .updateinventory, but I should probably do it with a call to that field instead
+endif
+
+Field Inventory
+call .updateInventory
+inventoryArray=«Inventory»
+
+showvariables gameDict, inventoryArray
+
+
+
+
+
+
+___ ENDPROCEDURE .Initialize ___________________________________________________
+
+___ PROCEDURE Display __________________________________________________________
+showvariables inventoryArray
+___ ENDPROCEDURE Display _______________________________________________________
+
+___ PROCEDURE .initalizeInventory ______________________________________________
+if Inventory=""
+initializedictionary gameDict,"Loops","0","nestedifs","0"
+endif
+showvariables gameDict
+/*
+find exportline() contains "Idle Game"
 field Inventory 
 copycell
 pastecell
-field Player
 endif
+*/
+Field Inventory
+call .updateInventory
+global inventoryArray
+inventoryArray=«Inventory»
+___ ENDPROCEDURE .initalizeInventory ___________________________________________
+
+___ PROCEDURE .testInventory ___________________________________________________
+gameDict=""
+showother Inventory, 2
+___ ENDPROCEDURE .testInventory ________________________________________________
+
+___ PROCEDURE .toTry ___________________________________________________________
+/*
+assign(
+customalert
+set and define
+customdialog
+executeeverysecond
+closewindowkeepsecret
+listsuperobject
+panorama cgi
+progressbar
+reminder
+rundialog
+showother
+crosstab for keeping up with all the math
+matrix to hold the inventory?
+shift all the cells holding data you don't want people to be able to change into permanents
+*/
+
+name=""
+
+___ ENDPROCEDURE .toTry ________________________________________________________
+
+___ PROCEDURE .everySecond _____________________________________________________
+
+
+
+global ExecuteEverySecond
+ExecuteEverySecond={
+if loopCount>0 and currentBytes<TotalMemory
+    currentBytes=currentBytes+currentIncrement
+showvariables currentBytes
+
+progressbar "Progress","Bar",val(currentBytes),currentGoal,0
+endif
+
+if currentBytes=TotalMemory
+message "Time to upgrade!"
+stop
+endif
+}
+
 ___ ENDPROCEDURE .everySecond __________________________________________________
 
 ___ PROCEDURE progressBar ______________________________________________________
@@ -941,14 +1042,21 @@ ___ PROCEDURE progressBar ______________________________________________________
 ___ ENDPROCEDURE progressBar ___________________________________________________
 
 ___ PROCEDURE .incrementByte ___________________________________________________
+if currentBytes≥TotalMemory
+message "Time to upgrade your Ram!"
+stop
+endif
 currentBytes=currentBytes+1
 showvariables currentBytes
+«Bytes»=currentBytes
 
 ;case currentBytes<8
 byteSize="Bits"
 ;case currentBytes>7
 ;byteSize="Bytes"
 ;endcase
+
+
 ___ ENDPROCEDURE .incrementByte ________________________________________________
 
 ___ PROCEDURE .buyLoops ________________________________________________________
@@ -957,25 +1065,45 @@ global loopCount,currentIncrement,Price
 global currentGoal
 currentGoal=1028
 
-Price=8
+Price=8 //get this from a dictionary
 loopCount=0
 ;currentIncrement=0
 currentBytes=currentBytes-Price
 
 loopCount=loopCount+1
 currentIncrement=loopCount
+
+call .everySecond
 ___ ENDPROCEDURE .buyLoops _____________________________________________________
 
 ___ PROCEDURE .memoryManagement ________________________________________________
-fileglobal totalMemoryArray,memoryDict
+//i think i overengineered this
+//it needs to have it so that if the user clicks on the empty slot or the upgrade cost, it deducts that ammount,
+//replaces the card, and gives new references for everything
+//it might be wiser to just make the matrix 2x2 and ask for the info("matrixrow")
+fileglobal totalMemoryArray,memoryDict,upgradeDict,upgradeRamArray
 memoryDict=""
- 
+upgradeDict=""
+upgradeRamArray=""
 setdictionaryvalue memoryDict,"8","8 Bits,Empty Slot,Empty Slot,Empty Slot"
 
+setdictionaryvalue upgradeDict,"Empty Slot","8 bits"
+setdictionaryvalue upgradeDict,"8 Bits","32 bits"
 
+//build an array of memory slot titles based on the total memory available
 totalMemoryArray=str(getdictionaryvalue(memoryDict,str(TotalMemory)))
 
-showvariables totalMemoryArray
+//set the upgrade amounts based on what's in those slots
+upgradeRamArray=str(getdictionaryvalue(upgradeDict,array(totalMemoryArray,1,",")))+","+
+str(getdictionaryvalue(upgradeDict,array(totalMemoryArray,2,",")))+","+
+str(getdictionaryvalue(upgradeDict,array(totalMemoryArray,3,",")))+","+
+str(getdictionaryvalue(upgradeDict,array(totalMemoryArray,4,",")))
+
+showvariables totalMemoryArray,upgradeRamArray
 
 
 ___ ENDPROCEDURE .memoryManagement _____________________________________________
+
+___ PROCEDURE .resetBytes ______________________________________________________
+currentBytes=1
+___ ENDPROCEDURE .resetBytes ___________________________________________________

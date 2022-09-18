@@ -1,8 +1,10 @@
 global currentBytes, gameDict, byteSize,playerName,totalBytes,
-newPlayer,nameChoice,loopCount,autoON,currentIncrement,currentGoal
+newPlayer,nameChoice,loopCount,autoON,currentIncrement,currentGoal,
+inventoryArray
 permanent nameList
 
 openform "Game"
+
 define playerName,""
 define currentBytes,0
 define currentSize,1
@@ -36,18 +38,24 @@ find «Player»=nameChoice
 if (not info("found"))
     message "Player"+nameChoice+"not found."
 endif
-
-gameDict=InventoryDictionary
-currentBytes=Bytes
-TotalBytes=LifetimeBytes
-byteSize=CurrentSize
-
-//not sure what this is?
-field Inventory
-copycell
-pastecell
-field Player
 endif
+
+//initializes the inventory
+if Inventory=""
+    initializedictionary gameDict,"Loops","0","ifs","0","if/else","0","nestedifs","0"
+    showvariables gameDict
+else
+    gameDict=InventoryDictionary
+    currentBytes=Bytes
+    totalBytes=LifetimeBytes
+    byteSize=CurrentSize
+endif
+
+Field Inventory
+call .updateInventory
+inventoryArray=«Inventory»
+
+showvariables gameDict, inventoryArray
 
 
 
