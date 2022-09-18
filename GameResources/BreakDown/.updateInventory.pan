@@ -1,0 +1,1 @@
+«Inventory»="Loops: "+¶+str(getdictionaryvalue(gameDict,"Loops"))+","+str(getdictionaryvalue(gameDict,"nestedifs"))
